@@ -7,14 +7,14 @@ objects, `.`, macros, motions you forgot existed.
 
 Teaching, not nagging.
 
-![Analysis suggestions as a notification toast](assets/analysis-notify.png)
+### Analysis and Ask, in both display styles
 
-### Both display styles — toasts or the message area
-
-| `display = "notify"` | `display = "echo"` (non-blocking bottom float) |
-| --- | --- |
-| ![Analysis as a toast](assets/analysis-notify.png) | ![Analysis in the message area](assets/analysis-echo.png) |
-| ![Ask answering from a toast](assets/ask-notify.png) | ![Ask answering in the message area](assets/ask-echo.png) |
+|                                                     |                                                     |
+| --------------------------------------------------- | --------------------------------------------------- |
+| <img src="assets/analysis-notify.png" alt="Analysis as a toast" width="420"> | <img src="assets/analysis-echo.png" alt="Analysis in the message area" width="420"> |
+| analysis, `display = "notify"`                      | analysis, `display = "echo"`                        |
+| <img src="assets/ask-notify.png" alt="Ask answering from a toast" width="420"> | <img src="assets/ask-echo.png" alt="Ask answering in the message area" width="420"> |
+| ask, `display = "notify"`                           | ask, `display = "echo"` (non-blocking bottom float) |
 
 ## Features
 
@@ -161,14 +161,14 @@ Tune motion habits the AI looks for via the `record` block.
 
 ## :FAIcilitatorAsk
 
-![Asking how to rename inside one function — grounded in the real buffer](assets/ask-demo.gif)
+<img src="assets/ask-demo.gif" alt="Asking how to rename inside one function — grounded in the real buffer" width="640">
 
 Answers are grounded in the current buffer context (cursor lines, register)
 and in your config inventory (your keymaps, commands, installed plugins —
 see `awareness`) — here it suggested a scoped substitute using the actual
 line range under the cursor.
 
-![:FAIcilitatorLog — full persisted history with dated entries](assets/log.png)
+<img src="assets/log.png" alt="FAIcilitatorLog — full persisted history with dated entries" width="640">
 
 ## Privacy — read before enabling
 
