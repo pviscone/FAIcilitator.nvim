@@ -57,6 +57,49 @@ local function guard(ai, cb)
 	return true
 end
 
+local REPLACEMENT = "\239\191\189" -- U+FFFD
+
+-- replace invalid UTF-8 bytes with U+FFFD. Sources like plugin doc files can
+-- carry Windows-1252 bytes (0x93/0x94 quotes); nvim's json encoder passes them
+-- through, strict server-side parsers reject the whole request.
+-- (LuaJIT has no utf8 stdlib — manual byte walk, no dependencies.)
+local function clean_utf8(s)
+	local out, i, n = {}, 1, #s
+	while i <= n do
+		local b = s:byte(i)
+		local len -- expected sequence length for a valid lead byte
+		if b < 0x80 then
+			len = 1
+		elseif b >= 0xC2 and b <= 0xDF then
+			len = 2
+		elseif b >= 0xE0 and b <= 0xEF then
+			len = 3
+		elseif b >= 0xF0 and b <= 0xF4 then
+			len = 4
+		else
+			len = 0 -- continuation byte or C0/C1/F5-FF: invalid start
+		end
+		local valid = len > 0 and i + len - 1 <= n
+		if valid then
+			for j = 1, len - 1 do
+				local cb = s:byte(i + j)
+				if cb < 0x80 or cb > 0xBF then
+					valid = false
+					break
+				end
+			end
+		end
+		if valid then
+			out[#out + 1] = s:sub(i, i + len - 1)
+			i = i + len
+		else
+			out[#out + 1] = REPLACEMENT
+			i = i + 1
+		end
+	end
+	return table.concat(out)
+end
+
 -- one async completion; cb gets raw text content or an error
 ---@param attempt integer internal retry counter (1 = first try)
 local function complete(ai, system, user, cb, attempt)
@@ -64,8 +107,8 @@ local function complete(ai, system, user, cb, attempt)
 	local body_tbl = {
 		model = ai.model,
 		messages = {
-			{ role = "system", content = system },
-			{ role = "user", content = user },
+			{ role = "system", content = clean_utf8(system) },
+			{ role = "user", content = clean_utf8(user) },
 		},
 		temperature = 0.2,
 		max_tokens = 512,
