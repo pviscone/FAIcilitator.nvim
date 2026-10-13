@@ -200,3 +200,7 @@ brief vim.notify ◀── JSON array parse ◀── POST /chat/completions ◀
 Consecutive identical keys are collapsed (`j` ×12) before sending, so the model
 sees `key(n): j (x12)` and answers _"use 12j"_ instead of raining tokens on 12
 single lines.
+
+## License
+
+AGPL-3.0 — see [LICENSE](LICENSE).
