@@ -97,6 +97,7 @@ Defaults: >lua
         api_key     = nil,        -- see |faicilitator-setup|
         api_key_env = "FAICILITATOR_API_KEY",
         params      = {},         -- extra request-body fields
+        temperature = 0.2,        -- sampling temperature (params win on merge)
         timeout     = 30,         -- curl timeout in seconds
       },
       -- deep-merged over `ai` per call path; nil = use `ai` as-is:

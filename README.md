@@ -128,6 +128,7 @@ require("faicilitator").setup({
 		api_key = nil, -- resolved: this field, then $api_key_env
 		api_key_env = "FAICILITATOR_API_KEY",
 		params = {}, -- extra request-body fields, e.g. { reasoning_effort = "none" }
+		temperature = 0.2, -- sampling temperature (params.temperature overrides on merge)
 		timeout = 30, -- seconds for the curl call
 	},
 	-- deep-merged over `ai` per call path (nil = use `ai` as-is): different

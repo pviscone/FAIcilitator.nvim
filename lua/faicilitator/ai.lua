@@ -110,7 +110,7 @@ local function complete(ai, system, user, cb, attempt)
 			{ role = "system", content = clean_utf8(system) },
 			{ role = "user", content = clean_utf8(user) },
 		},
-		temperature = 0.2,
+		temperature = ai.temperature,
 		max_tokens = 512,
 	}
 	for k, v in pairs(ai.params or {}) do
