@@ -1,0 +1,185 @@
+*faicilitator.txt*  AI-coached Neovim habit training
+
+======================================================================
+CONTENTS                                              *faicilitator*
+
+  1. Introduction ..................... |faicilitator-intro|
+  2. Requirements ..................... |faicilitator-requirements|
+  3. Setup ............................ |faicilitator-setup|
+  4. Options .......................... |faicilitator-options|
+  5. Commands ......................... |faicilitator-commands|
+  6. Privacy .......................... |faicilitator-privacy|
+  7. How it works ..................... |faicilitator-internals|
+
+======================================================================
+1. INTRODUCTION                                       *faicilitator-intro*
+
+FAIcilitator.nvim watches how you use Neovim (which parts is
+configurable), periodically sends a compact transcript of your recent
+activity to an OpenAI-compatible LLM, and shows brief notifications with
+concrete suggestions: counts, text objects, dot-repeat, macros and
+motions you could have used to do the same thing faster.
+
+It teaches; it does not block, remap or nag.
+
+======================================================================
+2. REQUIREMENTS                                *faicilitator-requirements*
+
+- Neovim >= 0.10
+- curl on $PATH
+- An API key for an OpenAI-compatible /chat/completions endpoint
+
+======================================================================
+3. SETUP                                              *faicilitator-setup*
+
+Load eagerly (recording must start at startup) and call setup:
+
+>lua
+    require("faicilitator").setup({
+      ai = {
+        endpoint = "https://api.openai.com/v1",
+        model = "gpt-5.1",
+        -- api_key = "sk-...",  -- or set $FAICILITATOR_API_KEY
+      },
+    })
+<
+
+`ai.endpoint` and `ai.model` are required; everything else is optional.
+Without them, analysis fails with a warning notification and nothing is
+sent anywhere.
+
+The API key is resolved in this order:
+  1. the `ai.api_key` option
+  2. the environment variable named by `ai.api_key_env`
+
+======================================================================
+4. OPTIONS                                          *faicilitator-options*
+
+Defaults: >lua
+
+    {
+      enabled = true,             -- master switch (see :FAIcilitatorToggle)
+      record = {
+        keys     = true,          -- keypresses via vim.on_key
+        commands = true,          -- :ex commands and /? searches
+        yanks    = false,         -- yank/delete operators
+        buffers  = false,         -- buffer switches (sends FILE NAMES)
+      },
+      max_events        = 2000,   -- raw events kept (ring buffer)
+      transcript_events = 300,    -- aggregated lines sent per analysis
+      timer  = { interval = 120,  -- seconds between timer checks
+                 min_events = 30 },   -- skip if less new activity
+      events = { threshold = 500 },   -- also analyze after N new events
+      cooldown = 60,              -- hard minimum seconds between runs
+      history = {                 -- persisted suggestion history
+        persist    = true,
+        file       = stdpath("data") .. "/faicilitator_history.jsonl",
+        max_file_kb = 256,        -- rotate to newest half when exceeded
+      },
+      notify = { level = vim.log.levels.INFO, max_suggestions = 3 },
+      display = "notify",         -- "notify": vim.notify toast
+                                  -- "echo": message area below the statusline
+      context = {
+        buffer_lines = 0,         -- lines around cursor sent as context (0 = off)
+        register     = false,     -- also send last yank/delete content
+      },
+      awareness = {  -- config inventory sent to the model, per scope:
+        analysis = { keymaps = "compact", commands = true, plugins = false },
+        ask      = { keymaps = "full",    commands = true, plugins = true,
+                     docs = false },
+      },
+      ai = {
+        endpoint    = nil,        -- REQUIRED base URL, e.g. ".../v1"
+        model       = nil,        -- REQUIRED model name
+        api_key     = nil,        -- see |faicilitator-setup|
+        api_key_env = "FAICILITATOR_API_KEY",
+        params      = {},         -- extra request-body fields
+        timeout     = 30,         -- curl timeout in seconds
+      },
+      -- deep-merged over `ai` per call path; nil = use `ai` as-is:
+      ai_analysis = nil,  -- e.g. fast/cheap model for auto-analysis
+      ai_ask      = { params = { reasoning_effort = "low" } },
+    }
+<
+
+Trigger logic: an analysis runs when EITHER `timer.interval` seconds
+have passed with at least `timer.min_events` new events, OR
+`events.threshold` new events accumulated — subject to `cooldown`.
+`timer interval = 0` disables the timer; a very large
+`events.threshold` effectively disables the event trigger.
+
+`ai.params` fields are merged verbatim into the JSON request body, so
+endpoint-specific options (e.g. `reasoning_effort`, `top_p`) need no
+plugin changes.
+
+`awareness`: `keymaps = "compact"` sends only interesting mappings
+(<leader>-prefixed, single chars, single modified keys), `"full"` sends
+every n/v mapping (truncated to fit the block), `false` sends none.
+`commands`/`plugins` are booleans; ask-scope commands include
+descriptions. Sections are budgeted so the whole block stays compact.
+
+`docs = true` (ask scope): keyword-retrieves relevant snippets from
+installed plugins' doc/*.txt matched against the question (plugin-name
+mentions score highest) and sends them with the ask. No background work,
+no cache, no LLM calls beyond the ask itself.
+
+======================================================================
+5. COMMANDS                                        *faicilitator-commands*
+
+                                                *:FAIcilitator*
+:FAIcilitator
+      Analyze the recorded activity now. Ignores cooldown and
+      min_events; needs at least one recorded event.
+
+                                                *:FAIcilitatorLog*
+:FAIcilitatorLog
+      Open the persisted suggestion history (newest first). With
+      telescope.nvim installed: a fuzzy-searchable picker with one row per
+      request — search matches dates, reasons, questions and suggestion
+      text; the preview pane shows the full entry. Without telescope: a
+      markdown split. Always untruncated, survives restarts; entries are
+      JSONL rows in `history.file`.
+
+                                                *:FAIcilitatorToggle*
+:FAIcilitatorToggle
+      Pause or resume the plugin. While paused nothing is analyzed;
+      recording continues in memory only. Manual :FAIcilitator is
+      refused with a reminder.
+
+                                                   *:FAIcilitatorAsk*
+:FAIcilitatorAsk [question]
+      Ask the model how to perform a specific action the best vim way
+      (e.g. "replace all occurrences of foo only inside the current
+      parens"). With no argument an input prompt (:h vim.ui.input())
+      asks for the question. The answer uses the buffer context when
+      context.* options are enabled, is shown via the configured
+      `display` mode, and is stored in the history with the question.
+
+======================================================================
+6. PRIVACY                                          *faicilitator-privacy*
+
+Every analysis POSTs a transcript of your recent activity — keypresses,
+ex commands, search patterns — to the configured endpoint. This can
+include fragments of typed text, search terms and file paths.
+
+Built-in mitigations:
+- terminal-mode input is NEVER recorded (passwords, shell commands)
+- cmdline input is recorded only as the final command, not keystrokes
+- `record.buffers` is opt-in (it sends file names)
+- `context.*` is opt-in (it sends buffer text / register contents)
+- `record.keys` / `record.commands` can be disabled independently
+- use a local endpoint (Ollama, llama.cpp) to keep data on your machine
+
+======================================================================
+7. HOW IT WORKS                                   *faicilitator-internals*
+
+Keys are captured with |vim.on_key|, commands with |CmdlineLeave|, yanks
+with |TextYankPost| and buffers with |BufEnter|. Events sit in a ring
+buffer capped by `max_events`. Before sending, consecutive identical
+keys are collapsed: "j j j j j" becomes `key(n): j (x12)`. The prompt
+requests a JSON array of at most 3 short suggestions; non-JSON replies
+are split by lines as fallback. Suggestions arrive via |vim.notify| and
+are kept in an in-memory history (50 entries) for |:FAIcilitatorLog|.
+
+======================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:
