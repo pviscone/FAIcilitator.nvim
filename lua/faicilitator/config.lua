@@ -5,30 +5,30 @@ local M = {}
 M.defaults = {
 	enabled = true,
 	record = {
-		keys = true, -- typed text (insert/replace); off keeps normal-mode motion tracking on
+		keys = false, -- typed text (insert/replace); off by default: only motions are tracked
 		commands = true, -- :ex commands and /? searches via CmdlineLeave
 		yanks = false, -- yank/delete operators via TextYankPost
 		buffers = false, -- buffer switches via BufEnter (leaks file names to the AI)
 	},
 	max_events = 2000, -- raw events kept in the ring buffer
 	transcript_events = 300, -- aggregated lines sent to the AI per analysis
-	timer = { interval = 120, min_events = 30 }, -- seconds; needs >= min_events new activity
-	events = { threshold = 500 }, -- also analyze after this many new events
-	cooldown = 60, -- min seconds between two analyses (:FAIcilitator ignores this)
+	timer = { interval = 5, min_events = 1 }, -- seconds; needs >= min_events new activity
+	events = { threshold = 10 }, -- also analyze after this many new events
+	cooldown = 2, -- min seconds between two analyses (:FAIcilitator ignores this)
 	history = {
 		persist = true, -- append suggestions to a file so :FAIcilitatorLog survives restarts
 		file = vim.fn.stdpath("data") .. "/faicilitator_history.jsonl",
 		max_file_kb = 256, -- rotated to keep the newest half when exceeded
 	},
 	notify = { level = vim.log.levels.INFO, max_suggestions = 3 },
-	display = "notify", -- "notify": vim.notify toast | "echo": message area below the statusline
+	display = "echo", -- "notify": vim.notify toast | "echo": message area below the statusline
 	context = {
-		buffer_lines = 0, -- buffer lines each side of the cursor sent as context (0 = off)
-		register = false, -- also send the unnamed register (last yank/delete)
+		buffer_lines = 3, -- buffer lines each side of the cursor sent as context (0 = off)
+		register = true, -- also send the unnamed register (last yank/delete)
 	},
 	awareness = { -- how much of YOUR config (maps/commands/plugins) the model sees
 		analysis = { keymaps = "compact", commands = true, plugins = false },
-		ask = { keymaps = "full", commands = true, plugins = true, docs = false },
+		ask = { keymaps = "full", commands = true, plugins = true, docs = true },
 	},
 	ai = {
 		endpoint = nil, -- REQUIRED: openai-compatible base URL, e.g. "https://api.openai.com/v1"

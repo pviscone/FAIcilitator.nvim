@@ -60,34 +60,34 @@ Defaults: >lua
     {
       enabled = true,             -- master switch (see :FAIcilitatorToggle)
       record = {
-        keys     = true,          -- typed text (insert/replace); off = keep
-                                  -- motion tracking, skip typed content
+        keys     = false,         -- typed text (insert/replace); off = only
+                                  -- motions tracked
         commands = true,          -- :ex commands and /? searches
         yanks    = false,         -- yank/delete operators
         buffers  = false,         -- buffer switches (sends FILE NAMES)
       },
       max_events        = 2000,   -- raw events kept (ring buffer)
       transcript_events = 300,    -- aggregated lines sent per analysis
-      timer  = { interval = 120,  -- seconds between timer checks
-                 min_events = 30 },   -- skip if less new activity
-      events = { threshold = 500 },   -- also analyze after N new events
-      cooldown = 60,              -- hard minimum seconds between runs
+      timer  = { interval = 5,    -- seconds between timer checks
+                 min_events = 1 },    -- skip if less new activity
+      events = { threshold = 10 },    -- also analyze after N new events
+      cooldown = 2,               -- hard minimum seconds between runs
       history = {                 -- persisted suggestion history
         persist    = true,
         file       = stdpath("data") .. "/faicilitator_history.jsonl",
         max_file_kb = 256,        -- rotate to newest half when exceeded
       },
       notify = { level = vim.log.levels.INFO, max_suggestions = 3 },
-      display = "notify",         -- "notify": vim.notify toast
+      display = "echo",           -- "notify": vim.notify toast
                                   -- "echo": message area below the statusline
       context = {
-        buffer_lines = 0,         -- lines around cursor sent as context (0 = off)
-        register     = false,     -- also send last yank/delete content
+        buffer_lines = 3,         -- lines around cursor sent as context (0 = off)
+        register     = true,      -- also send last yank/delete content
       },
       awareness = {  -- config inventory sent to the model, per scope:
         analysis = { keymaps = "compact", commands = true, plugins = false },
         ask      = { keymaps = "full",    commands = true, plugins = true,
-                     docs = false },
+                     docs = true },
       },
       ai = {
         endpoint    = nil,        -- REQUIRED base URL, e.g. ".../v1"
@@ -166,11 +166,13 @@ ex commands, search patterns — to the configured endpoint. This can
 include fragments of typed text, search terms and file paths.
 
 Built-in mitigations:
+- typed text is off by default (record.keys = false; only motions tracked)
 - terminal-mode input is NEVER recorded (passwords, shell commands)
 - cmdline input is recorded only as the final command, not keystrokes
-- `record.buffers` is opt-in (it sends file names)
-- `context.*` is opt-in (it sends buffer text / register contents)
-- `record.keys` / `record.commands` can be disabled independently
+- `record.buffers` / `record.yanks` are off by default
+- `context.*` (buffer lines, register) and `awareness.ask.docs` are ON by
+  default — they send buffer text, yank contents and plugin-doc snippets;
+  set the flags to 0/false to disable
 - use a local endpoint (Ollama, llama.cpp) to keep data on your machine
 
 ======================================================================

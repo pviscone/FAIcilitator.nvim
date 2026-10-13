@@ -96,30 +96,30 @@ Defaults, annotated:
 require("faicilitator").setup({
 	enabled = true,
 	record = {
-		keys = true, -- keypresses (terminal and cmdline input is never recorded)
+		keys = false, -- typed text (insert/replace); off by default: motions only
 		commands = true, -- :ex commands and /? searches
 		yanks = false, -- yank/delete operators
 		buffers = false, -- buffer switches (leaks file names to the endpoint)
 	},
 	max_events = 2000, -- raw events kept in the ring buffer
 	transcript_events = 300, -- aggregated lines sent per analysis
-	timer = { interval = 120, min_events = 30 }, -- every N seconds, if ≥ min_events new activity
-	events = { threshold = 500 }, -- OR every N recorded events, whichever first
-	cooldown = 60, -- hard minimum seconds between two analyses
+	timer = { interval = 5, min_events = 1 }, -- every N seconds, if ≥ min_events new activity
+	events = { threshold = 10 }, -- OR every N recorded events, whichever first
+	cooldown = 2, -- hard minimum seconds between two analyses
 	history = { -- :FAIcilitatorLog content, persisted across restarts
 		persist = true,
 		file = vim.fn.stdpath("data") .. "/faicilitator_history.jsonl",
 		max_file_kb = 256, -- rotated to the newest half when exceeded
 	},
 	notify = { level = vim.log.levels.INFO, max_suggestions = 3 },
-	display = "notify", -- "notify": vim.notify toast | "echo": message area below the statusline
+	display = "echo", -- "notify": vim.notify toast | "echo": message area below the statusline
 	context = {
-		buffer_lines = 0, -- buffer lines each side of the cursor sent as context (0 = off)
-		register = false, -- also send the last yank/delete content
+		buffer_lines = 3, -- buffer lines each side of the cursor sent as context (0 = off)
+		register = true, -- also send the last yank/delete content
 	},
 	awareness = { -- how much of YOUR config the model sees (keymaps/commands/plugins)
 		analysis = { keymaps = "compact", commands = true, plugins = false },
-		ask = { keymaps = "full", commands = true, plugins = true, docs = false },
+		ask = { keymaps = "full", commands = true, plugins = true, docs = true },
 	},
 	ai = {
 		endpoint = nil, -- REQUIRED, openai-compatible base URL
@@ -176,15 +176,21 @@ Every analysis sends a transcript of your recent activity — keypresses, ex
 commands, search patterns — to the configured endpoint. That can include
 fragments of text you typed, search terms, and file paths from commands.
 
-Mitigations built in:
+Mitigations and default leak surface:
 
+- **typed text is never recorded by default** (`record.keys = false` — only
+  normal-mode motions are tracked; set true to include insert-mode typing)
 - **terminal-mode input is never recorded** (sudo prompts, plain shells)
 - **typing into the `:FAIcilitatorAsk` prompt is never recorded** (asking a
   question is not editing behavior)
 - **cmdline keystrokes are never recorded** as keys (only the final command)
-- `record.buffers` is **off by default** (it would send file names)
-- `context.buffer_lines` / `context.register` are **off by default** (they send
-  buffer text / yank contents to make suggestions concrete)
+- `record.buffers` / `record.yanks` are **off by default**
+- **`context.buffer_lines` (3) and `context.register` are ON by default** —
+  buffer text around the cursor and your last yank are sent to ground
+  suggestions; set `0`/`false` to disable
+- `awareness` sends your keymap list, command names and plugin names;
+  `awareness.ask.docs` additionally sends matched snippets from installed
+  plugins' docs
 - `:FAIcilitatorToggle` pauses everything for sensitive sessions
 
 Point it at a local LLM (Ollama, llama.cpp server) to keep everything on your
