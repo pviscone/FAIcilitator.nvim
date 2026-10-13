@@ -60,7 +60,8 @@ Defaults: >lua
     {
       enabled = true,             -- master switch (see :FAIcilitatorToggle)
       record = {
-        keys     = true,          -- keypresses via vim.on_key
+        keys     = true,          -- typed text (insert/replace); off = keep
+                                  -- motion tracking, skip typed content
         commands = true,          -- :ex commands and /? searches
         yanks    = false,         -- yank/delete operators
         buffers  = false,         -- buffer switches (sends FILE NAMES)

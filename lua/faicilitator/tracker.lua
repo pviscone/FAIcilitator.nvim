@@ -45,6 +45,10 @@ local function record_key(key, typed)
 	if mode:sub(1, 1) == "t" or mode:sub(1, 1) == "c" then
 		return
 	end
+	-- record.keys covers typed text only: insert/replace/replace-virtual modes
+	if not config.get().record.keys and mode:match("^[iR]") then
+		return
+	end
 	local k = typed and typed ~= "" and typed or key
 	push({ kind = "key", t = os.time(), mode = mode, key = vim.fn.keytrans(k) })
 end
@@ -70,12 +74,12 @@ function M.start()
 	local opts = config.get()
 	M.stop()
 	M.augroup = vim.api.nvim_create_augroup("FAIcilitator", { clear = true })
-	if opts.record.keys then
-		M.ns = M.ns or vim.api.nvim_create_namespace("faicilitator")
-		vim.on_key(function(key, typed)
-			pcall(record_key, key, typed) -- on_key errors break input
-		end, M.ns)
-	end
+	-- on_key is always attached: record.keys=false only mutes insert-mode
+	-- text (privacy); normal/visual/operator keys are the coaching material
+	M.ns = M.ns or vim.api.nvim_create_namespace("faicilitator")
+	vim.on_key(function(key, typed)
+		pcall(record_key, key, typed) -- on_key errors break input
+	end, M.ns)
 	if opts.record.commands then
 		vim.api.nvim_create_autocmd("CmdlineLeave", { group = M.augroup, callback = record_cmdline })
 	end
