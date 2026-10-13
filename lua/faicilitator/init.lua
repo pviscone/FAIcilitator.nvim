@@ -17,9 +17,17 @@ M.state = {
 	history = {}, -- { time, reason, suggestions } newest last, capped at 50
 }
 
--- bottom-anchored message float: like the echo area, but NEVER triggers the
--- blocking hit-enter prompt. One at a time; the next message replaces it.
+-- bottom-anchored message float: covers the message area BELOW the
+-- statusline, never triggers the blocking hit-enter prompt. One at a time;
+-- the next message replaces it.
 local echo_win, echo_buf
+
+local function close_echo_float()
+	if echo_win and vim.api.nvim_win_is_valid(echo_win) then
+		vim.api.nvim_win_close(echo_win, true)
+	end
+	echo_win = nil
+end
 
 local function echo_float(msg, warn)
 	local width = vim.o.columns - 2
@@ -40,11 +48,10 @@ local function echo_float(msg, warn)
 	end
 	vim.api.nvim_buf_set_lines(echo_buf, 0, -1, false, lines)
 	if not (echo_win and vim.api.nvim_win_is_valid(echo_win)) then
-		local below = vim.o.cmdheight + (vim.o.laststatus > 0 and 1 or 0)
 		echo_win = vim.api.nvim_open_win(echo_buf, false, {
 			relative = "editor",
 			anchor = "SW",
-			row = vim.o.lines - below,
+			row = vim.o.lines - vim.o.cmdheight, -- bottom edge on the message row, under the statusline
 			col = 0,
 			width = width,
 			height = #lines,
@@ -67,8 +74,10 @@ local function notify(msg, level)
 	local opts = config.get()
 	level = level or opts.notify.level
 	if opts.display == "echo" then
-		-- single line: native echo; longer: non-blocking bottom float
+		-- one render area only: short messages native-echo into the message
+		-- row, long ones take the float covering exactly that row
 		if not msg:find("\n") and #msg + 15 <= vim.o.columns then
+			close_echo_float()
 			vim.api.nvim_echo({ { "FAIcilitator: ", "Title" }, { msg, "Normal" } }, true, {})
 		else
 			echo_float(msg, level >= vim.log.levels.WARN)
@@ -389,6 +398,11 @@ function M.setup(opts)
 	M.state.enabled = cfg.enabled
 	tracker.start()
 	tracker.on_event = on_event
+	-- the echo float lives on the cmdline row: hide it while the user types
+	vim.api.nvim_create_autocmd("CmdlineEnter", {
+		group = vim.api.nvim_create_augroup("FAIcilitatorEcho", { clear = true }),
+		callback = close_echo_float,
+	})
 	if M.state.timer then
 		M.state.timer:stop()
 		M.state.timer:close()
