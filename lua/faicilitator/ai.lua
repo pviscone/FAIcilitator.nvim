@@ -58,7 +58,9 @@ local function guard(ai, cb)
 end
 
 -- one async completion; cb gets raw text content or an error
-local function complete(ai, system, user, cb)
+---@param attempt integer internal retry counter (1 = first try)
+local function complete(ai, system, user, cb, attempt)
+	attempt = attempt or 1
 	local body_tbl = {
 		model = ai.model,
 		messages = {
@@ -113,7 +115,16 @@ local function complete(ai, system, user, cb)
 		end
 		if data.error then
 			local msg = type(data.error) == "table" and data.error.message or vim.inspect(data.error)
-			cb(nil, string.format("API error: %s (body was %d bytes)", tostring(msg), #body))
+			msg = tostring(msg)
+			-- transient gateway parse faults (observed on aigw: valid 6939-byte
+			-- body answered as "missing messages"): one quiet retry after 1.5s
+			if attempt == 1 and msg:lower():find("missing required parameter") then
+				vim.defer_fn(function()
+					complete(ai, system, user, cb, 2)
+				end, 1500)
+				return
+			end
+			cb(nil, string.format("API error: %s (body was %d bytes)", msg, #body))
 			return
 		end
 		local choice = data.choices and data.choices[1]
