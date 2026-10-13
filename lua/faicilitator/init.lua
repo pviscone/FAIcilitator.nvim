@@ -173,6 +173,16 @@ local function can_analyze()
 	return cfg.enabled and M.state.enabled and not M.state.pending and (os.time() - M.state.last_run) >= cfg.cooldown
 end
 
+-- questions asked while a request is in flight
+local ask_queue = {}
+
+local function drain_queue()
+	if M.state.pending or #ask_queue == 0 then
+		return
+	end
+	M.ask(table.remove(ask_queue, 1))
+end
+
 --- Collect the optional editing context (buffer lines around cursor,
 --- unnamed register) per the context.* options. Content is truncated.
 --- @return table ctx for faicilitator.ai.analyze
@@ -243,12 +253,14 @@ function M.analyze(reason, force)
 				M.state.pending = false
 				if err then
 					notify("analysis failed: " .. err, vim.log.levels.WARN)
+					drain_queue()
 					return
 				end
 				tracker.clear() -- next run gets fresh material
 				if suggestions and #suggestions > 0 then
 					record_result(reason, suggestions)
 				end
+				drain_queue()
 			end)
 		)
 	end)
@@ -264,18 +276,25 @@ function M.toggle()
 end
 
 --- Ask the model how to perform a specific action, with editing context.
+--- If a request is in flight the question is queued (max 3) and answered
+--- as soon as the current one completes.
 --- @param question string
 function M.ask(question)
+	question = vim.trim(question or "")
+	if question == "" then
+		return
+	end
 	if not M.state.enabled then
 		notify("paused (:FAIcilitatorToggle to resume)", vim.log.levels.WARN)
 		return
 	end
 	if M.state.pending then
-		notify("busy — try again in a moment", vim.log.levels.WARN)
-		return
-	end
-	question = vim.trim(question or "")
-	if question == "" then
+		if #ask_queue >= 3 then
+			notify("busy — question queue full, try again later", vim.log.levels.WARN)
+			return
+		end
+		ask_queue[#ask_queue + 1] = question
+		notify("busy — question queued, answering next")
 		return
 	end
 	M.state.pending = true
@@ -291,6 +310,7 @@ function M.ask(question)
 				M.state.pending = false
 				if err then
 					notify("ask failed: " .. err, vim.log.levels.WARN)
+					drain_queue()
 					return
 				end
 				record_entry({
@@ -299,6 +319,7 @@ function M.ask(question)
 					question = question,
 					suggestions = vim.split(answer, "\n", { trimempty = true }),
 				}, "Q: " .. question .. "\n" .. answer)
+				drain_queue()
 			end)
 		)
 	end)

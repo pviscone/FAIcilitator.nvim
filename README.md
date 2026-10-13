@@ -157,7 +157,7 @@ Tune motion habits the AI looks for via the `record` block.
 | `:FAIcilitator`             | analyze recent activity now (ignores cooldown)                              |
 | `:FAIcilitatorLog`          | persisted history — fuzzy-searchable Telescope picker (markdown split fallback) |
 | `:FAIcilitatorToggle`       | pause/resume recording and analysis                                         |
-| `:FAIcilitatorAsk [question]` | ask how to do something, the best vim way; no args → input prompt        |
+| `:FAIcilitatorAsk [question]` | ask how to do something, the best vim way; no args → input prompt. Asked while a request is in flight? It queues (max 3) and answers next |
 
 ## :FAIcilitatorAsk
 

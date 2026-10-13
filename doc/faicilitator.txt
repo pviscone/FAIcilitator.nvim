@@ -153,7 +153,9 @@ no cache, no LLM calls beyond the ask itself.
       parens"). With no argument an input prompt (:h vim.ui.input())
       asks for the question. The answer uses the buffer context when
       context.* options are enabled, is shown via the configured
-      `display` mode, and is stored in the history with the question.
+      (`display` mode) and is stored in the history with the question.
+      If a request is already in flight, the question is queued (max 3)
+      and answered as soon as the current request completes.
 
 ======================================================================
 6. PRIVACY                                          *faicilitator-privacy*
