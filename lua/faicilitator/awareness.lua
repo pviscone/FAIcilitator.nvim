@@ -146,13 +146,15 @@ end
 --- @param cap integer total chars budget
 --- @return string|nil
 function M.doc_snippets(question, cap)
-	if not (vim.pack and vim.pack.get) then
+	-- vim.pack.get() errors without a git executable
+	local ok, packs = pcall(vim.pack.get)
+	if not (ok and packs) then
 		return nil
 	end
 	local terms = terms_of(question)
 	local qnorm = question:lower():gsub("[%._%-]", "")
 	local scored = {}
-	for _, p in ipairs(vim.pack.get()) do
+	for _, p in ipairs(packs) do
 		local name = (p.spec and p.spec.name) or "?"
 		if p.path then
 			local files = vim.fn.globpath(p.path .. "/doc", "*.txt", false, true)

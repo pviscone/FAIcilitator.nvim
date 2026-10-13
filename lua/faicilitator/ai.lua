@@ -71,11 +71,24 @@ local function complete(ai, system, user, cb)
 	for k, v in pairs(ai.params or {}) do
 		body_tbl[k] = v
 	end
-	local body = vim.json.encode(body_tbl)
+	-- never ship a garbage body: gateway-side "missing parameter: messages"
+	-- with a non-empty request means something mangled it (curlrc, encoding…)
+	local enc_ok, body = pcall(vim.json.encode, body_tbl)
+	if not enc_ok or type(body) ~= "string" then
+		cb(nil, "internal: failed to JSON-encode the request body")
+		return
+	end
+	local check = vim.json.decode(body)
+	if not (check and check.model and type(check.messages) == "table" and #check.messages == 2) then
+		cb(nil, "internal: built request body is missing model/messages")
+		return
+	end
 	local url = ai.endpoint:gsub("/+$", "") .. "/chat/completions"
 	vim.system({
 		"curl",
 		"-sS",
+		"--config",
+		"/dev/null", -- ignore user's ~/.curlrc (its defaults can mangle the request)
 		"--max-time",
 		tostring(ai.timeout),
 		"-X",
@@ -100,7 +113,7 @@ local function complete(ai, system, user, cb)
 		end
 		if data.error then
 			local msg = type(data.error) == "table" and data.error.message or vim.inspect(data.error)
-			cb(nil, "API error: " .. tostring(msg))
+			cb(nil, string.format("API error: %s (body was %d bytes)", tostring(msg), #body))
 			return
 		end
 		local choice = data.choices and data.choices[1]
