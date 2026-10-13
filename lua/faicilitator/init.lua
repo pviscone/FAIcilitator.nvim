@@ -231,23 +231,31 @@ function M.analyze(reason, force)
 	end
 	M.state.pending = true
 	M.state.last_run = os.time()
-	local ctx = collect_context()
-	attach_awareness(ctx, "analysis")
-	ai.analyze(
-		transcript,
-		ctx,
-		vim.schedule_wrap(function(suggestions, err)
-			M.state.pending = false
-			if err then
-				notify("analysis failed: " .. err, vim.log.levels.WARN)
-				return
-			end
-			tracker.clear() -- next run gets fresh material
-			if suggestions and #suggestions > 0 then
-				record_result(reason, suggestions)
-			end
-		end)
-	)
+	-- pcall: a throw inside context building (awareness/plugins/file reads)
+	-- must not wedge pending forever — that silently disables all later analyses
+	local ok, launch_err = pcall(function()
+		local ctx = collect_context()
+		attach_awareness(ctx, "analysis")
+		ai.analyze(
+			transcript,
+			ctx,
+			vim.schedule_wrap(function(suggestions, err)
+				M.state.pending = false
+				if err then
+					notify("analysis failed: " .. err, vim.log.levels.WARN)
+					return
+				end
+				tracker.clear() -- next run gets fresh material
+				if suggestions and #suggestions > 0 then
+					record_result(reason, suggestions)
+				end
+			end)
+		)
+	end)
+	if not ok then
+		M.state.pending = false
+		notify("analysis failed: " .. tostring(launch_err), vim.log.levels.WARN)
+	end
 end
 
 function M.toggle()
@@ -271,25 +279,33 @@ function M.ask(question)
 		return
 	end
 	M.state.pending = true
-	local ctx = collect_context()
-	attach_awareness(ctx, "ask", question)
-	ai.ask(
-		question,
-		ctx,
-		vim.schedule_wrap(function(answer, err)
-			M.state.pending = false
-			if err then
-				notify("ask failed: " .. err, vim.log.levels.WARN)
-				return
-			end
-			record_entry({
-				time = os.date("%Y-%m-%d %H:%M"),
-				reason = "ask",
-				question = question,
-				suggestions = vim.split(answer, "\n", { trimempty = true }),
-			}, "Q: " .. question .. "\n" .. answer)
-		end)
-	)
+	-- pcall: a throw before the request starts must not wedge pending (→ every
+	-- later ask would say "busy"); see analyze() for the same pattern
+	local ok, launch_err = pcall(function()
+		local ctx = collect_context()
+		attach_awareness(ctx, "ask", question)
+		ai.ask(
+			question,
+			ctx,
+			vim.schedule_wrap(function(answer, err)
+				M.state.pending = false
+				if err then
+					notify("ask failed: " .. err, vim.log.levels.WARN)
+					return
+				end
+				record_entry({
+					time = os.date("%Y-%m-%d %H:%M"),
+					reason = "ask",
+					question = question,
+					suggestions = vim.split(answer, "\n", { trimempty = true }),
+				}, "Q: " .. question .. "\n" .. answer)
+			end)
+		)
+	end)
+	if not ok then
+		M.state.pending = false
+		notify("ask failed: " .. tostring(launch_err), vim.log.levels.WARN)
+	end
 end
 
 -- markdown lines for one history entry (shared by split fallback + preview)
