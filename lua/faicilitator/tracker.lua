@@ -9,11 +9,13 @@ M.ns = nil -- namespace for vim.on_key
 M.augroup = nil
 M.events = {}
 M.pending = 0 -- events recorded since the last analysis
+M.last_event_ms = nil -- uv.hrtime()/1e6 of the most recent recorded event
 M.on_event = nil -- optional hook, called (cheap) after every event
 M.ignore_keys = false -- set while our own ask prompt is open (don't self-record)
 M.prompt_buf = nil -- buffer that was current when the prompt opened
 
 local function push(ev)
+	M.last_event_ms = vim.uv.hrtime() / 1e6
 	local opts = config.get()
 	local e = M.events
 	e[#e + 1] = ev

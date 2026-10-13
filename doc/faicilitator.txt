@@ -71,7 +71,9 @@ Defaults: >lua
       timer  = { interval = 5,    -- seconds between timer checks
                  min_events = 1 },    -- skip if less new activity
       events = { threshold = 10 },    -- also analyze after N new events
-      cooldown = 2,               -- hard minimum seconds between runs
+      cooldown = 5,               -- hard minimum seconds between runs
+      idle_ms = 1500,             -- wait this long after the last recorded
+                                  -- event before auto-analyzing
       history = {                 -- persisted suggestion history
         persist    = true,
         file       = stdpath("data") .. "/faicilitator_history.jsonl",

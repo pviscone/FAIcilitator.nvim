@@ -413,6 +413,43 @@ function M.show_log()
 	vim.bo[buf].modifiable = false
 end
 
+-- idle guard: auto-analysis only when the user has been quiet for idle_ms
+-- since the last recorded event. Recording never pauses; the wait just
+-- re-arms until the user stops typing. Manual :FAIcilitator bypasses this.
+local function idle_elapsed()
+	local last = tracker.last_event_ms
+	if not last then
+		return true
+	end
+	return (vim.uv.hrtime() / 1e6) - last >= config.get().idle_ms
+end
+
+local function idle_remaining_ms()
+	return config.get().idle_ms - ((vim.uv.hrtime() / 1e6) - (tracker.last_event_ms or 0))
+end
+
+-- recurring quiet-check: keeps re-arming while events keep arriving
+local function when_idle_then_analyze()
+	if M.state.idle_wait then
+		return
+	end
+	M.state.idle_wait = true
+	local function poll()
+		if not can_analyze() then
+			M.state.idle_wait = false -- next event will re-arm the wait
+			return
+		end
+		local remaining = idle_remaining_ms()
+		if remaining <= 0 then
+			M.state.idle_wait = false
+			M.analyze("events", false)
+			return
+		end
+		vim.defer_fn(poll, remaining)
+	end
+	vim.defer_fn(poll, math.max(1, idle_remaining_ms()))
+end
+
 local function timer_tick()
 	if not can_analyze() then
 		return
@@ -420,13 +457,20 @@ local function timer_tick()
 	if tracker.pending < config.get().timer.min_events then
 		return
 	end
+	if not idle_elapsed() then
+		return -- user is typing; events accumulate for the next window
+	end
 	M.analyze("timer", false)
 end
 
 local function on_event()
 	local cfg = config.get()
 	if tracker.pending >= cfg.events.threshold and can_analyze() then
-		M.analyze("events", false)
+		if idle_elapsed() then
+			M.analyze("events", false)
+		else
+			when_idle_then_analyze()
+		end
 	end
 end
 

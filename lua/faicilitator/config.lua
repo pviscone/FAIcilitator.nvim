@@ -14,7 +14,8 @@ M.defaults = {
 	transcript_events = 300, -- aggregated lines sent to the AI per analysis
 	timer = { interval = 5, min_events = 1 }, -- seconds; needs >= min_events new activity
 	events = { threshold = 10 }, -- also analyze after this many new events
-	cooldown = 2, -- min seconds between two analyses (:FAIcilitator ignores this)
+	cooldown = 5, -- min seconds between two analyses (:FAIcilitator ignores this)
+	idle_ms = 1500, -- auto-analysis waits until this long after the last recorded event
 	history = {
 		persist = true, -- append suggestions to a file so :FAIcilitatorLog survives restarts
 		file = vim.fn.stdpath("data") .. "/faicilitator_history.jsonl",

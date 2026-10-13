@@ -105,7 +105,8 @@ require("faicilitator").setup({
 	transcript_events = 300, -- aggregated lines sent per analysis
 	timer = { interval = 5, min_events = 1 }, -- every N seconds, if ≥ min_events new activity
 	events = { threshold = 10 }, -- OR every N recorded events, whichever first
-	cooldown = 2, -- hard minimum seconds between two analyses
+	cooldown = 5, -- hard minimum seconds between two analyses
+	idle_ms = 1500, -- auto-analysis waits until this long after your last keystroke
 	history = { -- :FAIcilitatorLog content, persisted across restarts
 		persist = true,
 		file = vim.fn.stdpath("data") .. "/faicilitator_history.jsonl",
