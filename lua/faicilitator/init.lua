@@ -463,7 +463,11 @@ function M.setup(opts)
 		if cmd.args ~= "" then
 			M.ask(cmd.args)
 		else
+			tracker.prompt_buf = vim.api.nvim_get_current_buf()
+			tracker.ignore_keys = true -- typing the question is not user activity
 			vim.ui.input({ prompt = "How do I… " }, function(q)
+				tracker.ignore_keys = false
+				tracker.prompt_buf = nil
 				if q then
 					M.ask(q)
 				end

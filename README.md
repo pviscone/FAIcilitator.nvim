@@ -179,6 +179,8 @@ fragments of text you typed, search terms, and file paths from commands.
 Mitigations built in:
 
 - **terminal-mode input is never recorded** (sudo prompts, plain shells)
+- **typing into the `:FAIcilitatorAsk` prompt is never recorded** (asking a
+  question is not editing behavior)
 - **cmdline keystrokes are never recorded** as keys (only the final command)
 - `record.buffers` is **off by default** (it would send file names)
 - `context.buffer_lines` / `context.register` are **off by default** (they send

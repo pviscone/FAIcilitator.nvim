@@ -10,6 +10,8 @@ M.augroup = nil
 M.events = {}
 M.pending = 0 -- events recorded since the last analysis
 M.on_event = nil -- optional hook, called (cheap) after every event
+M.ignore_keys = false -- set while our own ask prompt is open (don't self-record)
+M.prompt_buf = nil -- buffer that was current when the prompt opened
 
 local function push(ev)
 	local opts = config.get()
@@ -31,8 +33,14 @@ local function push(ev)
 end
 
 local function record_key(key, typed)
-	-- never record terminal input (passwords, shell commands) or cmdline
-	-- keystrokes (the commands recorder already captures the full line)
+	-- never record our own ask prompt (typing the question is not editing),
+	-- terminal input (passwords, shell commands) or cmdline keystrokes (the
+	-- commands recorder already captures the full line)
+	-- (ignore while the prompt owns the focus: current buffer isn't the one
+	-- the prompt was opened from; works with any vim.ui.input implementation)
+	if M.ignore_keys and vim.api.nvim_get_current_buf() ~= M.prompt_buf then
+		return
+	end
 	local mode = vim.api.nvim_get_mode().mode
 	if mode:sub(1, 1) == "t" or mode:sub(1, 1) == "c" then
 		return
